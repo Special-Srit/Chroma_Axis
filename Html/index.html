@@ -10,6 +10,7 @@
 </head>
 
 <body>
+
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="index.html">Planner</a>
@@ -23,43 +24,73 @@
         </div>
     </nav>
 
-    <div class="glass">
-        <h3 class="text-center mb-3">📊 Overview</h3>
-
-        <div class="mb-3">
-            <label>Completion Percentage</label>
-            <div class="progress mb-2">
-                <div id="progressBar" class="progress-bar" role="progressbar" style="width:0%">0%</div>
+    <div class="container my-4">
+        <!-- Overall completion card -->
+        <div class="glass mb-4 p-4 text-center">
+            <h3>📊 Overall Progress</h3>
+            <div class="progress my-3" style="height:25px;">
+                <div id="overallProgress" class="progress-bar" role="progressbar" style="width:0%">0%</div>
             </div>
+            <label>Manual Adjust:</label>
             <input id="percentInput" type="number" class="form-control" min="0" max="100" value="0">
         </div>
 
-        <h5>All Tasks</h5>
-        <ul id="allList" class="list-unstyled"></ul>
+        <!-- Goals + To-Do columns -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="glass p-3 mb-4">
+                    <h4 class="text-center">🎯 Goals</h4>
+                    <ul id="goalList" class="list-unstyled"></ul>
+                    <small>Completion: <span id="goalPercent">0%</span></small>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="glass p-3 mb-4">
+                    <h4 class="text-center">✅ To-Dos</h4>
+                    <ul id="todoList" class="list-unstyled"></ul>
+                    <small>Completion: <span id="todoPercent">0%</span></small>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="../js/script.js"></script>
     <script>
         async function init() {
             await loadTasks();
-            renderTasks("allList");
 
-            const percentInput = document.getElementById('percentInput');
-            const progressBar = document.getElementById('progressBar');
+            // Render each section
+            renderTasks("goalList", "goal");
+            renderTasks("todoList", "todo");
 
-            function updateProgress(val) {
-                progressBar.style.width = val + '%';
-                progressBar.innerText = val + '%';
+            // Section completion calculation
+            function calcCompletion(type) {
+                const section = tasks.filter(t => t.type === type);
+                if (!section.length) return 0;
+                return Math.round(section.filter(t => t.done).length / section.length * 100);
             }
 
-            // Set initial progress from tasks
-            const autoPercent = getCompletionPercent();
-            percentInput.value = autoPercent;
-            updateProgress(autoPercent);
+            const goalPercent = document.getElementById("goalPercent");
+            const todoPercent = document.getElementById("todoPercent");
+            const overallProgress = document.getElementById("overallProgress");
+            const percentInput = document.getElementById("percentInput");
 
-            percentInput.addEventListener('input', () => {
+            function updateProgress() {
+                const overall = calcCompletion("goal") + calcCompletion("todo");
+                const total = tasks.length ? Math.round(tasks.filter(t => t.done).length / tasks.length * 100) : 0;
+                overallProgress.style.width = total + "%";
+                overallProgress.innerText = total + "%";
+                goalPercent.innerText = calcCompletion("goal") + "%";
+                todoPercent.innerText = calcCompletion("todo") + "%";
+            }
+
+            updateProgress();
+
+            // Manual adjust
+            percentInput.addEventListener("input", () => {
                 let val = Math.max(0, Math.min(100, percentInput.value));
-                updateProgress(val);
+                overallProgress.style.width = val + "%";
+                overallProgress.innerText = val + "%";
             });
         }
 
