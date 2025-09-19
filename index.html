@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chroma_Axis - Overview</title>
+    <!-- Firebase App (core) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <!-- Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">Chroma_Axis</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link active">Overall</a>
+                <a href="goals.html" class="nav-link">Goals</a>
+                <a href="todos.html" class="nav-link">To-Do</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Overall Header -->
+        <div class="overall-header">
+            <h1>Dashboard Overview</h1>
+            <p>Track your progress and manage your tasks efficiently</p>
+        </div>
+
+        <!-- Goals & Todos -->
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🎯 Active Goals</div>
+                    <div class="card-count" id="goals-count">0</div>
+                </div>
+                <ul class="item-list" id="goals-list"></ul>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">✅ To-Do Items</div>
+                    <div class="card-count" id="todos-count">0</div>
+                </div>
+                <ul class="item-list" id="todos-list"></ul>
+            </div>
+        </div>
+
+        <!-- Tasks Card Grid -->
+        <div class="task-grid" id="task-grid"></div>
+    </div>
+
+    <!-- Progress Modal -->
+    <div id="progress-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Item Progress</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        // === Firebase Initialization ===
+        const firebaseConfig = {
+            apiKey: "AIzaSyDlaw8W-cHpkHnXMEImQxRqRL8Hn8yi9GY",
+            authDomain: "chroma-axis.firebaseapp.com",
+            projectId: "chroma-axis",
+            storageBucket: "chroma-axis.firebasestorage.app",
+            messagingSenderId: "3717099778",
+            appId: "1:3717099778:web:86cdf0406d45e9a899921b",
+            measurementId: "G-REQB5GW7YG"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // Render Goals from Firebase
+        function renderGoals(goals) {
+            const goalsList = document.getElementById('goals-list');
+            const goalsCount = document.getElementById('goals-count');
+            goalsList.innerHTML = '';
+            goalsCount.textContent = goals.length;
+            goals.forEach(goal => {
+                const li = document.createElement('li'); li.className = 'item';
+                li.onclick = () => showProgress('goal', goal);
+                li.innerHTML = `
+                    <div class="item-title">${goal.title}</div>
+                    <div class="item-description">${goal.description}</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:${goal.progress}%"></div>
+                    </div>
+                `;
+                goalsList.appendChild(li);
+            });
+        }
+
+        // Render Todos from Firebase
+        function renderTodos(todos) {
+            const todosList = document.getElementById('todos-list');
+            const todosCount = document.getElementById('todos-count');
+            todosList.innerHTML = '';
+            todosCount.textContent = todos.length;
+            todos.forEach(todo => {
+                const li = document.createElement('li'); li.className = 'item';
+                li.onclick = () => showProgress('todo', todo);
+                li.innerHTML = `
+                    <div class="item-title">${todo.title}</div>
+                    <div class="item-description">${todo.description}</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width:${todo.progress}%"></div>
+                    </div>
+                `;
+                todosList.appendChild(li);
+            });
+        }
+
+        // Render Task Cards from Firebase
+        function renderTasks(tasks) {
+            const taskGrid = document.getElementById('task-grid');
+            taskGrid.innerHTML = '';
+            tasks.forEach(task => {
+                const card = document.createElement('div');
+                card.className = 'task-card';
+                card.onclick = () => showProgress('task', task);
+                card.innerHTML = `
+                    <div class="task-title">${task.title}</div>
+                    <div class="task-date">Due: ${task.date}</div>
+                    <div class="task-category category-${task.category}">${task.category}</div>
+                    <div class="progress-bar" style="margin-top:0.5rem;">
+                        <div class="progress-fill" style="width:${task.progress}%"></div>
+                    </div>
+                `;
+                taskGrid.appendChild(card);
+            });
+        }
+
+        // Firebase Real-Time Listeners
+        db.collection('goals').onSnapshot(snapshot => {
+            const goals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderGoals(goals);
+        });
+
+        db.collection('todos').onSnapshot(snapshot => {
+            const todos = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderTodos(todos);
+        });
+
+        db.collection('tasks').onSnapshot(snapshot => {
+            const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderTasks(tasks);
+        });
+
+        // Modal
+        function showProgress(type, item) {
+            const modal = document.getElementById('progress-modal');
+            const title = document.getElementById('modal-title');
+            const body = document.getElementById('modal-body');
+            title.textContent = `${type === 'goal' ? '🎯' : type === 'todo' ? '✅' : '📌'} ${item.title}`;
+            body.innerHTML = `
+                <p><strong>Description:</strong> ${item.description || ''}</p>
+                <div style="margin:1rem 0;"><strong>Progress: ${item.progress || 0}%</strong>
+                    <div class="progress-bar" style="margin-top:0.5rem;">
+                        <div class="progress-fill" style="width:${item.progress || 0}%"></div>
+                    </div>
+                </div>
+                ${type === 'goal' && item.tasks ? `<div><strong>Tasks:</strong>
+                    <ul style="margin-top:0.5rem; padding-left:1.5rem;">
+                        ${item.tasks.map(task => `<li style="margin-bottom:0.25rem;color:${item.completed && item.completed.includes(task) ? '#48bb78' : '#718096'};">${item.completed && item.completed.includes(task) ? '✅' : '⏳'} ${task}</li>`).join('')}
+                    </ul></div>` : ''}
+            `;
+            modal.classList.add('active');
+        }
+
+        function closeModal() { document.getElementById('progress-modal').classList.remove('active'); }
+        document.getElementById('progress-modal').addEventListener('click', (e) => { if (e.target.id === 'progress-modal') closeModal(); });
+
+    </script>
+</body>
+
+</html>

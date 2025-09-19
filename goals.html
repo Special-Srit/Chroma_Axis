@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chroma_Axis - Goals</title>
+    <link rel="stylesheet" href="css/style_goals.css">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDlaw8W-cHpkHnXMEImQxRqRL8Hn8yi9GY",
+            authDomain: "chroma-axis.firebaseapp.com",
+            projectId: "chroma-axis",
+            storageBucket: "chroma-axis.firebasestorage.app",
+            messagingSenderId: "3717099778",
+            appId: "1:3717099778:web:86cdf0406d45e9a899921b",
+            measurementId: "G-REQB5GW7YG"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">Chroma_Axis</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Overall</a>
+                <a href="goals.html" class="nav-link active">Goals</a>
+                <a href="todos.html" class="nav-link">To-Do</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="config-header">
+            <h1>🎯 Goals Management</h1>
+            <button class="add-btn" onclick="openAddModal()">Add New Goal</button>
+        </div>
+        <div class="config-list" id="goals-config"></div>
+    </div>
+
+    <!-- Add/Edit Goal Modal -->
+    <div id="goal-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Goal</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="goal-form">
+                <div class="form-group">
+                    <label class="form-label" for="goal-category">Category</label>
+                    <select id="goal-category" class="form-select">
+                        <option value="study" selected>Study</option>
+                        <option value="project">Project</option>
+                        <option value="work">Work</option>
+                        <option value="personal">Personal</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="goal-title">Goal Title</label>
+                    <input type="text" id="goal-title" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="goal-description">Description</label>
+                    <textarea id="goal-description" class="form-textarea" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="goal-progress">Progress (%)</label>
+                    <input type="number" id="goal-progress" class="form-input" min="0" max="100" value="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tasks</label>
+                    <div id="tasks-container" class="tasks-container"></div>
+                    <button type="button" class="add-task" onclick="addTaskField()">+ Add Task</button>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submit-btn">Save Goal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentEditId = null;
+        const categoryColors = {
+            study: 'category-study',
+            project: 'category-project',
+            work: 'category-work',
+            personal: 'category-personal',
+            other: 'category-other'
+        };
+
+        // --- Render Goals ---
+        const goalsContainer = document.getElementById('goals-config');
+        function renderGoals() {
+            db.collection('goals').orderBy('progress', 'desc')
+                .onSnapshot(snapshot => {
+                    goalsContainer.innerHTML = '';
+                    if (snapshot.empty) {
+                        goalsContainer.innerHTML = '<p style="text-align:center; color:#718096; padding:2rem;">No goals yet. Click "Add New Goal" to get started!</p>';
+                        return;
+                    }
+                    snapshot.forEach(doc => {
+                        const goal = doc.data();
+                        const div = document.createElement('div');
+                        div.className = 'config-item';
+                        const categoryClass = categoryColors[goal.category] || 'category-other';
+                        div.innerHTML = `
+          <div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <div class="item-title">${goal.title}</div>
+              <span class="category-badge ${categoryClass}">${goal.category.charAt(0).toUpperCase() + goal.category.slice(1)}</span>
+            </div>
+            <div class="item-description">${goal.description}</div>
+            <div class="item-progress">Progress: ${goal.progress}%</div>
+          </div>
+          <div class="config-actions">
+            <button class="edit-btn" onclick="editGoal('${doc.id}')">Edit</button>
+            <button class="delete-btn" onclick="deleteGoal('${doc.id}')">Delete</button>
+          </div>
+        `;
+                        goalsContainer.appendChild(div);
+                    });
+                });
+        }
+
+        // --- Modal functions ---
+        function openAddModal() {
+            currentEditId = null;
+            document.getElementById('modal-title').textContent = 'Add New Goal';
+            document.getElementById('submit-btn').textContent = 'Save Goal';
+            clearForm();
+            addTaskField();
+            document.getElementById('goal-modal').classList.add('active');
+        }
+
+        function editGoal(id) {
+            currentEditId = id;
+            db.collection('goals').doc(id).get().then(doc => {
+                const goal = doc.data();
+                if (!goal) return;
+                document.getElementById('modal-title').textContent = 'Edit Goal';
+                document.getElementById('submit-btn').textContent = 'Update Goal';
+                document.getElementById('goal-title').value = goal.title;
+                document.getElementById('goal-description').value = goal.description;
+                document.getElementById('goal-progress').value = goal.progress;
+                document.getElementById('goal-category').value = goal.category || 'other';
+                document.getElementById('tasks-container').innerHTML = '';
+                (goal.tasks || []).forEach(task => addTaskField(task, (goal.completed || []).includes(task)));
+                if (!goal.tasks || goal.tasks.length === 0) addTaskField();
+                document.getElementById('goal-modal').classList.add('active');
+            });
+        }
+
+        function closeModal() { document.getElementById('goal-modal').classList.remove('active'); currentEditId = null; }
+        function clearForm() { document.getElementById('goal-form').reset(); document.getElementById('tasks-container').innerHTML = ''; }
+
+        // --- Tasks ---
+        function addTaskField(taskText = '', isCompleted = false) {
+            const container = document.getElementById('tasks-container');
+            const div = document.createElement('div'); div.className = 'task-item';
+            div.innerHTML = `
+    <input type="checkbox" class="task-checkbox" ${isCompleted ? 'checked' : ''}>
+    <input type="text" class="task-input" placeholder="Enter task..." value="${taskText}">
+    <button type="button" class="remove-task" onclick="removeTask(this)">Remove</button>
+  `;
+            container.appendChild(div);
+        }
+        function removeTask(btn) { btn.parentElement.remove(); }
+
+        // --- Form submit ---
+        document.getElementById('goal-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const title = document.getElementById('goal-title').value.trim();
+            const description = document.getElementById('goal-description').value.trim();
+            const progress = parseInt(document.getElementById('goal-progress').value);
+            const category = document.getElementById('goal-category').value;
+            const taskInputs = document.querySelectorAll('.task-input');
+            const taskCheckboxes = document.querySelectorAll('.task-checkbox');
+            const tasks = [], completed = [];
+            taskInputs.forEach((input, i) => { if (input.value.trim()) { tasks.push(input.value.trim()); if (taskCheckboxes[i].checked) completed.push(input.value.trim()); } });
+            if (!title || !description) { alert('Fill all required fields'); return; }
+            const goalData = { title, description, progress, category, tasks, completed };
+            if (currentEditId) { db.collection('goals').doc(currentEditId).set(goalData); }
+            else { db.collection('goals').add(goalData); }
+            closeModal();
+        });
+
+        // --- Delete ---
+        function deleteGoal(id) { if (confirm('Delete this goal?')) db.collection('goals').doc(id).delete(); }
+
+        // --- Close modal on outside click ---
+        document.getElementById('goal-modal').addEventListener('click', (e) => { if (e.target.id === 'goal-modal') closeModal(); });
+
+        // Initial render
+        renderGoals();
+    </script>
+
+</body>
+
+</html>

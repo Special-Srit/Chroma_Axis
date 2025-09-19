@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chroma_Axis - To-Do</title>
+    <link rel="stylesheet" href="css/style_todos.css">
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyDlaw8W-cHpkHnXMEImQxRqRL8Hn8yi9GY",
+            authDomain: "chroma-axis.firebaseapp.com",
+            projectId: "chroma-axis",
+            storageBucket: "chroma-axis.firebasestorage.app",
+            messagingSenderId: "3717099778",
+            appId: "1:3717099778:web:86cdf0406d45e9a899921b",
+            measurementId: "G-REQB5GW7YG"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+    </script>
+
+    <style>
+        /* --- You can reuse all CSS from goals.html, just adjust for todo if needed --- */
+    </style>
+</head>
+
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">Chroma_Axis</div>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Overall</a>
+                <a href="goals.html" class="nav-link">Goals</a>
+                <a href="todos.html" class="nav-link active">To-Do</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="config-header">
+            <h1>📝 To-Do Management</h1>
+            <button class="add-btn" onclick="openAddModal()">Add New To-Do</button>
+        </div>
+        <div class="config-list" id="todos-config"></div>
+    </div>
+
+    <!-- Add/Edit To-Do Modal -->
+    <div id="todo-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New To-Do</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="todo-form">
+                <div class="form-group">
+                    <label class="form-label" for="todo-title">To-Do Title</label>
+                    <input type="text" id="todo-title" class="form-input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="todo-description">Description</label>
+                    <textarea id="todo-description" class="form-textarea"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Tasks</label>
+                    <div id="tasks-container" class="tasks-container"></div>
+                    <button type="button" class="add-task" onclick="addTaskField()">+ Add Task</button>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn-primary" id="submit-btn">Save To-Do</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let currentEditId = null;
+
+        // --- Render To-Dos ---
+        const todosContainer = document.getElementById('todos-config');
+        function renderTodos() {
+            db.collection('todos').onSnapshot(snapshot => {
+                todosContainer.innerHTML = '';
+                if (snapshot.empty) {
+                    todosContainer.innerHTML = '<p style="text-align:center; color:#718096; padding:2rem;">No to-dos yet. Click "Add New To-Do" to get started!</p>';
+                    return;
+                }
+                snapshot.forEach(doc => {
+                    const todo = doc.data();
+                    const div = document.createElement('div');
+                    div.className = 'config-item';
+                    div.innerHTML = `
+        <div>
+          <div class="item-title">${todo.title}</div>
+          <div class="item-description">${todo.description || ''}</div>
+          ${(todo.tasks && todo.tasks.length > 0) ? `<div class="item-progress">Tasks: ${todo.completed ? todo.completed.length : 0} / ${todo.tasks.length}</div>` : ''}
+        </div>
+        <div class="config-actions">
+          <button class="edit-btn" onclick="editTodo('${doc.id}')">Edit</button>
+          <button class="delete-btn" onclick="deleteTodo('${doc.id}')">Delete</button>
+        </div>
+      `;
+                    todosContainer.appendChild(div);
+                });
+            });
+        }
+
+        // --- Modal functions ---
+        function openAddModal() {
+            currentEditId = null;
+            document.getElementById('modal-title').textContent = 'Add New To-Do';
+            document.getElementById('submit-btn').textContent = 'Save To-Do';
+            clearForm();
+            addTaskField();
+            document.getElementById('todo-modal').classList.add('active');
+        }
+
+        function editTodo(id) {
+            currentEditId = id;
+            db.collection('todos').doc(id).get().then(doc => {
+                const todo = doc.data();
+                if (!todo) return;
+                document.getElementById('modal-title').textContent = 'Edit To-Do';
+                document.getElementById('submit-btn').textContent = 'Update To-Do';
+                document.getElementById('todo-title').value = todo.title;
+                document.getElementById('todo-description').value = todo.description || '';
+                document.getElementById('tasks-container').innerHTML = '';
+                (todo.tasks || []).forEach(task => addTaskField(task, (todo.completed || []).includes(task)));
+                if (!todo.tasks || todo.tasks.length === 0) addTaskField();
+                document.getElementById('todo-modal').classList.add('active');
+            });
+        }
+
+        function closeModal() { document.getElementById('todo-modal').classList.remove('active'); currentEditId = null; }
+        function clearForm() { document.getElementById('todo-form').reset(); document.getElementById('tasks-container').innerHTML = ''; }
+
+        // --- Tasks ---
+        function addTaskField(taskText = '', isCompleted = false) {
+            const container = document.getElementById('tasks-container');
+            const div = document.createElement('div'); div.className = 'task-item';
+            div.innerHTML = `
+    <input type="checkbox" class="task-checkbox" ${isCompleted ? 'checked' : ''}>
+    <input type="text" class="task-input" placeholder="Enter task..." value="${taskText}">
+    <button type="button" class="remove-task" onclick="removeTask(this)">Remove</button>
+  `;
+            container.appendChild(div);
+        }
+        function removeTask(btn) { btn.parentElement.remove(); }
+
+        // --- Form submit ---
+        document.getElementById('todo-form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            const title = document.getElementById('todo-title').value.trim();
+            const description = document.getElementById('todo-description').value.trim();
+            const taskInputs = document.querySelectorAll('.task-input');
+            const taskCheckboxes = document.querySelectorAll('.task-checkbox');
+            const tasks = [], completed = [];
+            taskInputs.forEach((input, i) => { if (input.value.trim()) { tasks.push(input.value.trim()); if (taskCheckboxes[i].checked) completed.push(input.value.trim()); } });
+            if (!title) { alert('Please enter a title'); return; }
+            const todoData = { title, description, tasks, completed };
+            if (currentEditId) { db.collection('todos').doc(currentEditId).set(todoData); }
+            else { db.collection('todos').add(todoData); }
+            closeModal();
+        });
+
+        // --- Delete ---
+        function deleteTodo(id) { if (confirm('Delete this to-do?')) db.collection('todos').doc(id).delete(); }
+
+        // --- Close modal on outside click ---
+        document.getElementById('todo-modal').addEventListener('click', (e) => { if (e.target.id === 'todo-modal') closeModal(); });
+
+        // Initial render
+        renderTodos();
+    </script>
+
+</body>
+
+</html>
