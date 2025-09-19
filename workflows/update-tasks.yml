@@ -1,0 +1,27 @@
+name: Update tasks.json
+
+on:
+  workflow_dispatch:
+    inputs:
+      tasks:
+        description: "Updated tasks JSON"
+        required: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Update tasks.json
+        run: |
+          echo '${{ github.event.inputs.tasks }}' > tasks.json
+
+      - name: Commit changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add tasks.json
+          git commit -m "Update tasks via workflow"
+          git push
